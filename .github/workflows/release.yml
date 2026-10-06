@@ -64,6 +64,7 @@ jobs:
             $(pkg-config --cflags --libs hidapi-hidraw)
           cc -O2 -Wall -Wextra -o build/isp_exit tools/isp_exit.c \
             $(pkg-config --cflags --libs libusb-1.0)
+          cc -O2 -Wall -Wextra -o build/rfdctl tools/rfdctl.c
 
       - name: Package
         run: |
@@ -71,8 +72,9 @@ jobs:
           NAME=rk-r87pro-${{ matrix.label }}
           rm -rf dist && mkdir -p dist/udev
           cp build/plugins/rk-r87pro.so dist/
-          cp build/r87proctl build/isp_exit dist/
+          cp build/r87proctl build/rfdctl build/isp_exit dist/
           cp README.md README_zh.md RECOVERY.md LICENSE dist/
+          cp -r docs dist/
           cp udev/*.rules dist/udev/
           {
             echo "plugin : rk-r87pro.so ($NAME)";

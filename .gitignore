@@ -7,6 +7,8 @@ core.*
 
 # 编译出来的工具二进制（请自行编译，见各 .c 文件头部说明）
 tools/r87proctl
+tools/rfdctl
+tools/rfprobe
 tools/isp_exit
 tools/sinowisp
 

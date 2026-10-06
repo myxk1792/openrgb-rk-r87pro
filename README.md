@@ -28,6 +28,7 @@ Verified on real hardware: the plugin registers, Direct mode lights individual k
 | RGB collection | Usage Page `0xFF00`, Usage `0x01` |
 | Data channel | Feature Report **0x06**, 519 data bytes (520 through hidapi) |
 | LED count | 102 (indices 0..101; the populated indices are listed in section 8) |
+| 2.4G receiver | `3554:FA09` "CX 2.4G Wireless Receiver", vendor collection usage page `0xFF02` / usage `0x02`, report `0x13` (19 bytes) - see [docs/rf-dongle-protocol.md](docs/rf-dongle-protocol.md) |
 
 ## 2. Protocol
 
@@ -79,15 +80,18 @@ rk-r87pro-plugin/
 │   └── filesystem.h
 ├── src/
 │   ├── R87ProPlugin.{h,cpp}      # plugin entry point (OpenRGBPluginInterface)
-│   ├── R87ProDevice.{h,cpp}      # HID transport + direct-mode keepalive
+│   ├── R87ProDevice.{h,cpp}      # wired HID transport + direct-mode keepalive
+│   ├── R87ProDongle.{h,cpp}      # 2.4G receiver transport (report 0x13 tunnel)
 │   ├── R87ProLayout.{h,cpp}      # LED index <-> key mapping (measured)
 │   └── metadata.json             # Qt plugin metadata (API version 5)
 ├── tools/
 │   ├── r87proctl.c               # standalone diagnostic / calibration tool
+│   ├── rfdctl.c                  # 2.4G receiver tool (status, colours, fill)
 │   └── isp_exit.c                # leave the ISP bootloader (libusb)
 ├── udev/
 │   ├── 61-openrgb-rk-r87pro.rules
-│   └── 62-sinowisp.rules
+│   ├── 62-sinowisp.rules
+│   └── 63-rk-r87pro-receiver.rules
 ├── scripts/
 │   ├── build.sh
 │   ├── install-plugin.sh
@@ -95,6 +99,7 @@ rk-r87pro-plugin/
 │   ├── install-system.sh
 │   ├── uninstall-plugin.sh
 │   └── verify-keys.sh            # light anchor keys one by one for manual checking
+├── docs/rf-dongle-protocol.md    # reverse engineered 2.4G protocol notes
 ├── README.md                     # this file
 ├── README_zh.md                  # Chinese version
 └── RECOVERY.md                   # flashing / rescue notes (Chinese)
@@ -135,7 +140,8 @@ Download `rk-r87pro-linux-x86_64-*.tar.gz` for your distribution from
 mkdir -p ~/.config/OpenRGB/plugins
 cp rk-r87pro.so ~/.config/OpenRGB/plugins/
 
-sudo cp udev/61-openrgb-rk-r87pro.rules /etc/udev/rules.d/
+sudo cp udev/61-openrgb-rk-r87pro.rules /etc/udev/rules.d/     # wired keyboard
+sudo cp udev/63-rk-r87pro-receiver.rules /etc/udev/rules.d/    # 2.4G receiver
 sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw --action=change
 ```
 
@@ -159,19 +165,23 @@ This copies `rk-r87pro.so` into `$XDG_CONFIG_HOME/OpenRGB/plugins/` (default
 
 ### 6.3 udev rules (required, needs root)
 
-`258A:019F` is **not** listed in the `60-openrgb.rules` shipped with OpenRGB, so `/dev/hidrawN`
-is `crw------- root root` and neither OpenRGB nor the plugin can open it. Install the rule that
-ships with this plugin:
+Neither `258A:019F` (cable) nor `3554:FA09` (2.4G receiver) is listed in the `60-openrgb.rules`
+shipped with OpenRGB, so their `/dev/hidrawN` nodes are `crw------- root root` and neither
+OpenRGB nor the plugin can open them. Install the rules that ship with this plugin:
 
 ```sh
 sudo ./scripts/install-udev.sh
 ```
 
-The rule itself (`udev/61-openrgb-rk-r87pro.rules`):
+The rules themselves (`udev/61-openrgb-rk-r87pro.rules`, `udev/63-rk-r87pro-receiver.rules`):
 
 ```
 SUBSYSTEMS=="usb|hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="019f", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="3554", ATTRS{idProduct}=="fa09", TAG+="uaccess"
 ```
+
+Install both once: plugging the cable in selects the wired path automatically, unplugging it falls
+back to the 2.4G receiver.
 
 Afterwards replug the keyboard (or run `sudo udevadm trigger`) and check:
 
@@ -254,6 +264,22 @@ $ openrgb -d 0 -m Direct -c 00FF00
 ./scripts/verify-keys.sh                      # walk through the anchor keys
 ```
 
+### 2.4G receiver tool
+
+```sh
+./tools/rfdctl status              # is a keyboard linked to the receiver?
+./tools/rfdctl password            # model id + firmware version through the receiver
+./tools/rfdctl colors              # read the current colour buffer (126 slots)
+./tools/rfdctl save colors.bin     # back the buffer up
+./tools/rfdctl load colors.bin     # write it back
+./tools/rfdctl fill ff0000         # set every LED
+```
+
+The receiver path is a tunnel: every command is a 19-byte packet and one colour frame is 27
+acknowledged packets, so a frame takes roughly 0.4 s. The plugin drives it correctly but at only
+a few frames per second - fine for static colours, not for fast animations. Whenever the USB
+cable is plugged in the plugin prefers the wired path.
+
 ## 8. Measured LED mapping (model ID 0x56)
 
 The table below is the result of lighting LEDs one by one and checking every key by hand
@@ -333,6 +359,10 @@ sudo ./scripts/uninstall-plugin.sh     # also remove the udev rule
   device page destructor dereference a dangling pointer and OpenRGB segfaults on exit (reproduced
   and worked around). The controller object is a few KB and the process is about to exit, so it
   is intentionally left alone.
+* The 2.4G path is markedly slower than USB (a frame is 27 acknowledged 19-byte packets, about
+  0.4 s), so colour changes over the receiver arrive a few times per second. The wired path stays
+  the better choice for effects. The receiver protocol is documented in
+  [docs/rf-dongle-protocol.md](docs/rf-dongle-protocol.md).
 * This protocol is the result of community reverse engineering (based on the OpenRGB Sinowealth
   010C driver) and may change with firmware revisions.
 

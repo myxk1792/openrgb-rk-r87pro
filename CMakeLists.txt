@@ -21,6 +21,8 @@ add_library(rk-r87pro MODULE
     src/R87ProPlugin.h
     src/R87ProDevice.cpp
     src/R87ProDevice.h
+    src/R87ProDongle.cpp
+    src/R87ProDongle.h
     src/R87ProLayout.cpp
     src/R87ProLayout.h
     src/metadata.json

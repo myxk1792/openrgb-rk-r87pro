@@ -75,6 +75,7 @@ takes roughly 0.4 s, i.e. a few frames per second. Fine for static colours, not 
 
 ## Status
 
-Not implemented in this plugin: the wired path (519-byte feature report frames) still needs the
-USB cable. Implementing the dongle path would mean a second transport in `src/` that speaks the
-protocol above over hidraw output/input report 0x13.
+Implemented: `src/R87ProDongle.{h,cpp}` speaks this protocol over hidraw output/input report 0x13
+and `tools/rfdctl.c` exposes it for manual testing. The plugin picks the receiver automatically
+when the USB cable is not plugged in. The wired path (519-byte feature report 0x06 frames) is
+still used whenever the cable is connected, because it is an order of magnitude faster.

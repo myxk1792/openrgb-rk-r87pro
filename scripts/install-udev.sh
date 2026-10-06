@@ -4,24 +4,27 @@
 #
 #   sudo ./scripts/install-udev.sh
 #
-# OpenRGB ships 60-openrgb.rules but it does not list PID 019F, so the hidraw
-# node stays root-only (0600) and the keyboard cannot be opened by the plugin.
+# OpenRGB ships 60-openrgb.rules but it lists neither the keyboard (258A:019F)
+# nor its 2.4G receiver (3554:FA09), so their hidraw nodes stay root-only (0600)
+# and the plugin cannot open them.  All rules in udev/ are installed.
 set -e
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-RULE=61-openrgb-rk-r87pro.rules
 
 if [ "$(id -u)" -ne 0 ]; then
     echo "This script must be run as root:  sudo $0" >&2
     exit 1
 fi
 
-install -m 0644 "$ROOT/udev/$RULE" "/etc/udev/rules.d/$RULE"
+for rule in "$ROOT"/udev/*.rules; do
+    name=$(basename "$rule")
+    install -m 0644 "$rule" "/etc/udev/rules.d/$name"
+    echo "installed /etc/udev/rules.d/$name"
+done
+
 udevadm control --reload
 udevadm trigger --subsystem-match=hidraw --action=change
 udevadm trigger --subsystem-match=usb --action=change
-
-echo "installed /etc/udev/rules.d/$RULE"
 echo
 echo "Check access with:"
 echo "  ./tools/r87proctl info"

@@ -28,6 +28,7 @@ OpenRGB 1.0 自带的 `SinowealthControllerDetect` 支持 258A 下的多个 PID
 | RGB 集合 | Usage Page `0xFF00`, Usage `0x01` |
 | 数据通道 | Feature Report **0x06**，519 字节数据（hidapi 中为 520 字节） |
 | LED 数量 | 102（索引 0..101，实测有效索引见第 8 节） |
+| 2.4G 接收器 | `3554:FA09` "CX 2.4G Wireless Receiver"，厂商集合 Usage Page `0xFF02` / Usage `0x02`，report `0x13`（19 字节），详见 [docs/rf-dongle-protocol.md](docs/rf-dongle-protocol.md) |
 
 ## 2. 协议
 
@@ -151,18 +152,22 @@ sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw -
 
 ### 6.3 udev 规则（必须，需要 root）
 
-`258A:019F` **不在** OpenRGB 自带的 `60-openrgb.rules` 中，因此 `/dev/hidrawN` 是
-`crw------- root root`，OpenRGB 和插件都打不开。安装本插件附带的规则：
+无论有线（`258A:019F`）还是 2.4G 接收器（`3554:FA09`）**都不在** OpenRGB 自带的
+`60-openrgb.rules` 中，因此 `/dev/hidrawN` 是 `crw------- root root`，OpenRGB 和插件都打不开。
+安装本插件附带的规则：
 
 ```sh
 sudo ./scripts/install-udev.sh
 ```
 
-规则内容（`udev/61-openrgb-rk-r87pro.rules`）：
+规则内容（`udev/61-openrgb-rk-r87pro.rules`、`udev/63-rk-r87pro-receiver.rules`）：
 
 ```
 SUBSYSTEMS=="usb|hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="019f", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="3554", ATTRS{idProduct}=="fa09", TAG+="uaccess"
 ```
+
+两条都装上：插线时插件自动走有线路径，拔线后自动改用 2.4G 接收器。
 
 装好后重新插拔键盘（或 `sudo udevadm trigger`），确认：
 

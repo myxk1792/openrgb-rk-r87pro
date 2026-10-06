@@ -18,6 +18,7 @@
 
 #include "OpenRGBPluginInterface.h"
 #include "R87ProDevice.h"
+#include "R87ProDongle.h"
 
 class R87ProPlugin : public QObject, public OpenRGBPluginInterface
 {
@@ -54,10 +55,12 @@ public:
 
 private:
     void                RegisterDevice(const std::string& path);
+    void                RegisterDongle(const std::string& path);
     void                UpdateStatusLabel();
 
     OpenRGBPluginAPIInterface*              api = nullptr;
     std::vector<R87ProDevice*>              devices;
+    std::vector<R87ProDongle*>              dongles;
     std::vector<RGBControllerInterface*>    interfaces;
     QWidget*                                widget   = nullptr;
     QLabel*                                 status   = nullptr;
