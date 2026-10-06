@@ -131,6 +131,10 @@ sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw -
 包内还附带 `r87proctl`（灯位诊断）、`isp_exit`（退出 ISP 刷机模式）和 udev 规则；
 `BUILD-INFO.txt` 记录了构建时的 Qt / glibc 版本。也可以自己编译（见第 5 节）。
 
+预编译包由 GitHub Actions 在 Ubuntu 22.04 / 24.04 镜像里构建（Qt 6.2.4 / 6.4，glibc ≥ 2.35），
+已在 Qt 6.11 的 OpenRGB 上实测可直接加载并注册控制器；Qt 6.x 内保持二进制兼容，
+所以两个包一般都能用，选 glibc 更接近你系统的那一个即可。
+
 ### 6.2 插件（普通用户，无需 root）
 
 ```sh
