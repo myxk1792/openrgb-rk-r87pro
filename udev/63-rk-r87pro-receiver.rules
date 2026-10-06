@@ -1,0 +1,3 @@
+# CX 2.4G wireless receiver shipped with the R87 Pro (3554:fa09).
+# Only needed for diagnostics: grant the logged-in user access to its hidraw nodes.
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="3554", ATTRS{idProduct}=="fa09", TAG+="uaccess"
