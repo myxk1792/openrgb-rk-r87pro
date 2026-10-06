@@ -100,7 +100,7 @@ rk-r87pro-plugin/
 * cmake ≥ 3.16、C++17 编译器
 * Qt6 Core / Gui / Widgets（开发包）
 * hidapi（`pkg-config hidapi-hidraw`；Arch 上是 `hidapi`）
-* nlohmann-json（Arch 上是 `nlohmann-json`，头文件位于 `/usr/include/nlohmann`）
+* nlohmann-json（Arch: `nlohmann-json`；Debian/Ubuntu: `nlohmann-json3-dev`）——OpenRGB SDK 头文件会引用它
 
 ## 5. 构建
 
