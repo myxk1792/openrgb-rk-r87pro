@@ -1,0 +1,125 @@
+name: Build and release plugin
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to create/update (e.g. v1.0.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # older glibc/Qt -> runs on more distributions
+          - os: ubuntu-22.04
+            label: linux-x86_64-ubuntu22.04
+          - os: ubuntu-24.04
+            label: linux-x86_64-ubuntu24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            qt6-base-dev libhidapi-dev libusb-1.0-0-dev
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build plugin
+        run: cmake --build build -j"$(nproc)"
+
+      - name: Sanity check the plugin binary
+        run: |
+          set -e
+          file build/plugins/rk-r87pro.so
+          test -s build/plugins/rk-r87pro.so
+          # a Qt plugin must export the instance factory and metadata hooks
+          nm -D build/plugins/rk-r87pro.so | grep -q qt_plugin_instance
+          nm -D build/plugins/rk-r87pro.so | grep -q qt_plugin_query_metadata
+          # and must not reference the OpenRGB binary's internals
+          if nm -u build/plugins/rk-r87pro.so | grep -qiE 'openrgb|RGBController::'; then
+            echo 'unexpected OpenRGB internal references'; exit 1;
+          fi
+
+      - name: Build helper tools
+        run: |
+          cc -O2 -Wall -Wextra -o build/r87proctl tools/r87proctl.c \
+            $(pkg-config --cflags --libs hidapi-hidraw)
+          cc -O2 -Wall -Wextra -o build/isp_exit tools/isp_exit.c \
+            $(pkg-config --cflags --libs libusb-1.0)
+
+      - name: Package
+        run: |
+          set -e
+          NAME=rk-r87pro-${{ matrix.label }}
+          rm -rf dist && mkdir -p dist/udev
+          cp build/plugins/rk-r87pro.so dist/
+          cp build/r87proctl build/isp_exit dist/
+          cp README.md RECOVERY.md LICENSE dist/
+          cp udev/*.rules dist/udev/
+          {
+            echo "plugin : rk-r87pro.so ($NAME)";
+            echo "built  : $(date -u +%Y-%m-%dT%H:%M:%SZ)";
+            echo "qt     : $(qmake6 -query QT_VERSION 2>/dev/null || dpkg-query -W -f='${Version}' qt6-base-dev)";
+            echo "glibc  : $(ldd --version | head -1)";
+            echo; echo 'needed libraries:'; ldd dist/rk-r87pro.so;
+          } > dist/BUILD-INFO.txt
+          tar -czf "$NAME.tar.gz" -C dist .
+          sha256sum "$NAME.tar.gz" > "$NAME.tar.gz.sha256"
+          cat "$NAME.tar.gz.sha256"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}
+          path: |
+            rk-r87pro-*.tar.gz
+            rk-r87pro-*.tar.gz.sha256
+          if-no-files-found: error
+
+  release:
+    name: publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Show collected files
+        run: ls -l artifacts
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG="${{ inputs.tag }}"
+          [ -n "$TAG" ] || TAG="${GITHUB_REF_NAME}"
+          case "$TAG" in v*) ;; *) echo "refusing to release non-version tag '$TAG'"; exit 1;; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" artifacts/*.tar.gz artifacts/*.sha256 --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              artifacts/*.tar.gz artifacts/*.sha256
+          fi
+          gh release view "$TAG" --json url,assets --jq '"release: \(.url)", (.assets[] | "asset  : \(.name) (\(.size) bytes)")'
