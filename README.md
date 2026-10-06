@@ -10,6 +10,8 @@ OpenRGB 1.0 自带的 `SinowealthControllerDetect` 支持 258A 下的多个 PID
 本插件已在实机 R87 Pro 上**实测通过**：插件注册成功、Direct 模式可以逐键点亮、
 87 个按键的 LED 索引全部逐个核对过（见第 8 节）。
 
+[![Build and release plugin](https://github.com/myxk1792/openrgb-rk-r87pro/actions/workflows/release.yml/badge.svg)](https://github.com/myxk1792/openrgb-rk-r87pro/actions/workflows/release.yml)
+
 ---
 
 ## 1. 目标设备
@@ -113,7 +115,23 @@ rk-r87pro-plugin/
 
 ## 6. 安装
 
-### 6.1 插件（普通用户，无需 root）
+### 6.1 用预编译包（最快）
+
+从 [Releases](https://github.com/myxk1792/openrgb-rk-r87pro/releases) 下载与发行版匹配的
+`rk-r87pro-linux-x86_64-*.tar.gz`（glibc 较旧选 `ubuntu22.04`，较新选 `ubuntu24.04`），解压后：
+
+```sh
+mkdir -p ~/.config/OpenRGB/plugins
+cp rk-r87pro.so ~/.config/OpenRGB/plugins/
+
+sudo cp udev/61-openrgb-rk-r87pro.rules /etc/udev/rules.d/
+sudo udevadm control --reload && sudo udevadm trigger --subsystem-match=hidraw --action=change
+```
+
+包内还附带 `r87proctl`（灯位诊断）、`isp_exit`（退出 ISP 刷机模式）和 udev 规则；
+`BUILD-INFO.txt` 记录了构建时的 Qt / glibc 版本。也可以自己编译（见第 5 节）。
+
+### 6.2 插件（普通用户，无需 root）
 
 ```sh
 ./scripts/install-plugin.sh
@@ -122,7 +140,7 @@ rk-r87pro-plugin/
 会把 `rk-r87pro.so` 复制到 `$XDG_CONFIG_HOME/OpenRGB/plugins/`
 （默认 `~/.config/OpenRGB/plugins/`），这正是 OpenRGB 的用户插件目录。
 
-### 6.2 udev 规则（必须，需要 root）
+### 6.3 udev 规则（必须，需要 root）
 
 `258A:019F` **不在** OpenRGB 自带的 `60-openrgb.rules` 中，因此 `/dev/hidrawN` 是
 `crw------- root root`，OpenRGB 和插件都打不开。安装本插件附带的规则：
@@ -143,7 +161,7 @@ SUBSYSTEMS=="usb|hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="019f", TAG
 ./tools/r87proctl info
 ```
 
-### 6.3 系统装有 openrgb.service 时（重要）
+### 6.4 系统装有 openrgb.service 时（重要）
 
 某些发行版（例如 Arch 的 openrgb 包）会安装 `/usr/lib/systemd/system/openrgb.service`，它以 root 运行
 `openrgb --server --config /etc/openrgb`，占用键盘设备和 6742 端口；OpenRGB GUI 启动时会
