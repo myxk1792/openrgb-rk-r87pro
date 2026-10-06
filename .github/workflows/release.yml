@@ -72,7 +72,7 @@ jobs:
           rm -rf dist && mkdir -p dist/udev
           cp build/plugins/rk-r87pro.so dist/
           cp build/r87proctl build/isp_exit dist/
-          cp README.md RECOVERY.md LICENSE dist/
+          cp README.md README_zh.md RECOVERY.md LICENSE dist/
           cp udev/*.rules dist/udev/
           {
             echo "plugin : rk-r87pro.so ($NAME)";
