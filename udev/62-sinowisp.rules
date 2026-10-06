@@ -1,0 +1,4 @@
+# SinoWealth ISP bootloader (0603:1020 "Gaming KB") and the RK R87 Pro itself.
+# Needed so sinowisp can open the USB device node without root.
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0603", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="258a", TAG+="uaccess"

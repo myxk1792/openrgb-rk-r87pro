@@ -1,0 +1,9 @@
+{
+    "OpenRGBPluginAPIVersion": 5,
+    "Id": "org.openrgb.plugins.rk-r87pro",
+    "Name": "Royal Kludge R87 Pro",
+    "Description": "Adds RGB control for the Royal Kludge R87 Pro (BY Tech / SinoWealth 258A:019F) using its vendor HID interface.",
+    "VersionStr": "1.0.0",
+    "Commit": "",
+    "Url": "https://openrgb.org"
+}

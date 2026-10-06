@@ -1,0 +1,16 @@
+#---------------------------------------------------------------#
+# OpenRGB access rule for Royal Kludge / BY Tech keyboards
+#
+# Royal Kludge R87 Pro (BY Tech, SinoWealth chip)
+#   USB VID:PID = 258a:019f
+#
+# The device exposes a vendor HID collection (Usage Page 0xFF00,
+# Usage 0x01) with feature report ID 0x06 that carries the per-LED
+# RGB payload.  OpenRGB's stock 60-openrgb.rules does not know this
+# PID, so the hidraw node is root-only (0600) and neither OpenRGB
+# nor this plugin can open it.
+#
+# TAG+="uaccess" asks systemd-logind to grant an ACL to the user of
+# the currently active seat session.
+#---------------------------------------------------------------#
+SUBSYSTEMS=="usb|hidraw", ATTRS{idVendor}=="258a", ATTRS{idProduct}=="019f", TAG+="uaccess"
