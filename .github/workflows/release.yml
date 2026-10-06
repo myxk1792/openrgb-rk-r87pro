@@ -115,12 +115,15 @@ jobs:
           TAG="${{ inputs.tag }}"
           [ -n "$TAG" ] || TAG="${GITHUB_REF_NAME}"
           case "$TAG" in v*) ;; *) echo "refusing to release non-version tag '$TAG'"; exit 1;; esac
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" artifacts/*.tar.gz artifacts/*.sha256 --clobber
+          # no checkout in this job, so tell gh which repository to talk to
+          REPO="$GITHUB_REPOSITORY"
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$REPO" artifacts/*.tar.gz artifacts/*.sha256 --clobber
           else
-            gh release create "$TAG" \
+            gh release create "$TAG" --repo "$REPO" \
               --title "$TAG" \
               --generate-notes \
               artifacts/*.tar.gz artifacts/*.sha256
           fi
-          gh release view "$TAG" --json url,assets --jq '"release: \(.url)", (.assets[] | "asset  : \(.name) (\(.size) bytes)")'
+          gh release view "$TAG" --repo "$REPO" --json url,assets \
+            --jq '"release: \(.url)", (.assets[] | "asset  : \(.name) (\(.size) bytes)")'
